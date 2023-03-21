@@ -1,0 +1,8 @@
+#  RUN THIS COMMAND IN THE TERMINAL:
+#   comunica-sparql-link-traversal https://solid.interactions.ics.unisg.ch/flosPod/profile/card#me -f src/queries/friends_of_friends_1_2b.sparql
+PREFIX  foaf: <http://xmlns.com/foaf/0.1/>
+
+SELECT DISTINCT ?other
+WHERE {
+    ?person foaf:knows ?other.
+}

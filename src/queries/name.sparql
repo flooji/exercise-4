@@ -1,4 +1,4 @@
-#  comunica-sparql https://solid.interactions.ics.unisg.ch/florence/profile/card#me -f src/queries/name.sparql
+#  comunica-sparql https://solid.interactions.ics.unisg.ch/flosPod/profile/card#me -f src/queries/name.sparql
 
 PREFIX foaf:  <http://xmlns.com/foaf/0.1/>
 SELECT ?name

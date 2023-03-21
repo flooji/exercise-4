@@ -21,7 +21,7 @@ mas quantified_self {
     }
     
     workspace self {
-        artifact pod: solid.Pod("https://solid.interactions.ics.unisg.ch/danai")
+        artifact pod: solid.Pod("https://solid.interactions.ics.unisg.ch/flosPod/")
     }
 }
 

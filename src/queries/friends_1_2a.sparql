@@ -1,0 +1,8 @@
+#  RUN THIS COMMAND IN THE TERMINAL:
+# comunica-sparql https://solid.interactions.ics.unisg.ch/flosPod/profile/card#me -f src/queries/friends_1_2a.sparql
+PREFIX  foaf: <http://xmlns.com/foaf/0.1/>
+
+SELECT ?person
+WHERE {
+    ?me foaf:knows ?person.
+}

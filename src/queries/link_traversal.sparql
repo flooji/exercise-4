@@ -1,7 +1,0 @@
-#  comunica-sparql-link-traversal https://solid.interactions.ics.unisg.ch/florence/profile/card#me -f src/queries/all_persons.sparql
-PREFIX  foaf: <http://xmlns.com/foaf/0.1/>
-
-SELECT DISTINCT ?other
-WHERE {
-    ?person foaf:knows ?other.
-}

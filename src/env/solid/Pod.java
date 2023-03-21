@@ -4,15 +4,24 @@ import cartago.Artifact;
 import cartago.OPERATION;
 import cartago.OpFeedbackParam;
 
+import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
 /**
  * A CArtAgO artifact that agent can use to interact with LDP containers in a Solid pod.
  */
 public class Pod extends Artifact {
-
-    private String podURL; // the location of the Solid pod 
+    HttpClient client = HttpClient.newHttpClient();
+    private static final String PATH_CONTAINER_TTL = "/Users/flo/IdeaProjects/exercise-4/src/resources/create_container.ttl";
+    private String podURL; // the location of the Solid pod
 
   /**
-   * Method called by CArtAgO to initialize the artifact. 
+   * Method called by CArtAgO to initialize the artifact.
    *
    * @param podURL The location of a Solid pod
    */
@@ -25,65 +34,130 @@ public class Pod extends Artifact {
    * CArtAgO operation for creating a Linked Data Platform container in the Solid pod
    *
    * @param containerName The name of the container to be created
-   * 
+   *
    */
     @OPERATION
     public void createContainer(String containerName) {
-        log("1. Implement the method createContainer()");
+        Path path_ttl = Paths.get(PATH_CONTAINER_TTL);
+        try {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(podURL))
+                    .header("Content-Type", "text/turtle")
+                    .header("Link", "<http://www.w3.org/ns/ldp#BasicContainer>; rel=\"type\"")
+                    .header("Slug", containerName + "/")
+                    .POST(HttpRequest.BodyPublishers.ofFile(path_ttl))
+                    .build();
+
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            System.out.println(response);
+        } catch (IOException | InterruptedException e) {
+            log("Error: " + e.getMessage());
+        }
     }
 
   /**
    * CArtAgO operation for publishing data within a .txt file in a Linked Data Platform container of the Solid pod
-   * 
+   *
    * @param containerName The name of the container where the .txt file resource will be created
    * @param fileName The name of the .txt file resource to be created in the container
    * @param data An array of Object data that will be stored in the .txt file
    */
     @OPERATION
     public void publishData(String containerName, String fileName, Object[] data) {
-        log("2. Implement the method publishData()");
+        String body = createStringFromArray(data);
+
+        HttpRequest request = fileExists(containerName, fileName) ?
+        requestForExistingFile(containerName, fileName, body) :
+        requestForNewFile(containerName, fileName, body);
+
+        HttpResponse<String> response;
+        try {
+            response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            log("Published data with status: " + response.statusCode());
+        } catch (IOException | InterruptedException e) {
+            log("Error: " + e.getMessage());
+        }
     }
 
-  /**
+    private boolean fileExists(String containerName, String fileName) {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(podURL + containerName + "/" + fileName))
+                .GET()
+                .build();
+
+        HttpResponse<String> response;
+        try {
+            response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+            return response.statusCode() != 404;
+        } catch (IOException | InterruptedException e) {
+            log("Error: " + e.getMessage());
+            return false;
+        }
+    }
+
+    private HttpRequest requestForExistingFile(String containerName, String fileName, String body) {
+        return HttpRequest.newBuilder()
+                .uri(URI.create(podURL + containerName + "/" + fileName))
+                .header("Content-Type", "text/plain")
+                .PUT(HttpRequest.BodyPublishers.ofString(body))
+                .build();
+    }
+
+    private HttpRequest requestForNewFile(String containerName, String fileName, String body) {
+        return HttpRequest.newBuilder()
+                .uri(URI.create(podURL + containerName))
+                .header("Content-Type", "text/plain")
+                .header("Slug", fileName)
+                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .build();
+    }
+
+    /**
    * CArtAgO operation for reading data of a .txt file in a Linked Data Platform container of the Solid pod
-   * 
+   *
    * @param containerName The name of the container where the .txt file resource is located
    * @param fileName The name of the .txt file resource that holds the data to be read
    * @param data An array whose elements are the data read from the .txt file
    */
     @OPERATION
     public void readData(String containerName, String fileName, OpFeedbackParam<Object[]> data) {
-        data.set(readData(containerName, fileName));
+        Object[] responseObjects = makeReadDataRequest(containerName, fileName);
+
+        data.set(responseObjects);
     }
 
-  /**
+    /**
    * Method for reading data of a .txt file in a Linked Data Platform container of the Solid pod
-   * 
+   *
    * @param containerName The name of the container where the .txt file resource is located
    * @param fileName The name of the .txt file resource that holds the data to be read
    * @return An array whose elements are the data read from the .txt file
    */
     public Object[] readData(String containerName, String fileName) {
-        log("3. Implement the method readData(). Currently, the method returns mock data");
-
-        // Remove the following mock responses once you have implemented the method
-        switch(fileName) {
-            case "watchlist.txt":
-                Object[] mockWatchlist = new Object[]{"The Matrix", "Inception", "Avengers: Endgame"};
-                return mockWatchlist;
-            case "sleep.txt":
-                Object[] mockSleepData = new Object[]{"6", "7", "5"};
-                return mockSleepData;
-            case "trail.txt":
-                Object[] mockTrailData = new Object[]{"3", "5.5", "5.5"};
-                return mockTrailData; 
-            default:
-                return new Object[0];
-        }
-
+        return makeReadDataRequest(containerName, fileName);
     }
 
-  /**
+    private Object[] makeReadDataRequest(String containerName, String fileName) {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(podURL + containerName + "/" + fileName))
+                .GET()
+                .build();
+
+        HttpResponse<String> response;
+        Object[] responseObjects;
+        try {
+            response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            responseObjects = createArrayFromString(response.body());
+            log("Read data request: " + response.statusCode());
+        } catch (IOException | InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+        return responseObjects;
+    }
+
+
+    /**
    * Method that converts an array of Object instances to a string, 
    * e.g. the array ["one", 2, true] is converted to the string "one\n2\ntrue\n"
    *
